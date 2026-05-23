@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PEAK-A
 
-## Getting Started
+Agent IA de cadrage de projet (Next.js 16, Auth.js, Prisma, Google Gemini).
 
-First, run the development server:
+## Structure du projet
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+peak-a/
+├── app/                    # App Router (pages + API)
+│   ├── api/                # Routes API (chat, sessions, auth…)
+│   ├── components/         # UI client (PeakChat)
+│   ├── login/ register/    # Auth
+│   └── page.tsx            # Accueil (chat)
+├── src/lib/                # Logique métier (prisma, agent, docx…)
+├── auth.ts / auth.config.ts # NextAuth (credentials + JWT)
+├── middleware.ts           # Protection pages + API privées
+├── prisma/                 # Schéma + migrations
+└── types/                  # Types NextAuth
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> Le dossier `src/app/` est un ancien squelette **exclu du build** — ne pas y ajouter de routes.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Variables d'environnement
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copie `.env.example` vers `.env` en local. Sur **Vercel**, configure les mêmes clés dans *Settings → Environment Variables*.
 
-## Learn More
+| Variable | Obligatoire | Description |
+|----------|-------------|-------------|
+| `DATABASE_URL` | Oui | PostgreSQL (URL **pooler** en prod, ex. Neon/Supabase) |
+| `AUTH_SECRET` | Oui (prod) | Secret Auth.js (`openssl rand -base64 32`) |
+| `AUTH_URL` ou `NEXTAUTH_URL` | Oui (prod) | URL publique (`https://ton-app.vercel.app`) |
+| `GEMINI_API_KEY` | Oui | Clé API Google AI Studio / Gemini |
+| `GEMINI_MODEL` | Non | Modèle (défaut : `gemini-2.0-flash`) |
 
-To learn more about Next.js, take a look at the following resources:
+Alias acceptés : `GOOGLE_GENERATIVE_AI_API_KEY`, `GOOGLE_GENERATIVE_AI_MODEL`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Développement local
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+cd peak-a
+npm install
+npx prisma migrate dev
+npm run dev
+```
 
-## Deploy on Vercel
+Ouvre [http://localhost:3000](http://localhost:3000).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Déploiement Vercel
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Importer** le dossier `peak-a` comme racine du projet (ou monorepo avec *Root Directory* = `peak-a`).
+2. **Base de données** : créer une base PostgreSQL managée (Neon, Supabase, Vercel Postgres).
+   - Utiliser l’URL **pooled** pour `DATABASE_URL`.
+3. **Variables** : toutes celles du tableau ci-dessus.
+4. **Migrations** (une fois après le premier déploiement) :
+   ```bash
+   npx prisma migrate deploy
+   ```
+   Ou en local avec `DATABASE_URL` de prod.
+5. **Build** : `npm run build` exécute `prisma generate` puis `next build --webpack` (recommandé avec Next 16 sur Vercel).
+6. **Racine Vercel** : définir *Root Directory* = `peak-a` si le dépôt contient aussi un `package-lock.json` à la racine parente.
+7. **Durées** : `vercel.json` configure `maxDuration` pour le chat et les routes d’analyse.
+8. **Santé** : `GET /api/health` (public) — vérifie DB + auth + clé Gemini sans exposer de secrets.
+
+### Sécurité (déjà en place)
+
+- Middleware : pages privées + **API protégées** (sauf `/api/auth`, `/api/register`, `/api/health`).
+- Cookies sécurisés en production (`useSecureCookies`).
+- En-têtes HTTP (X-Frame-Options, nosniff, Referrer-Policy…).
+- Routes Prisma en **runtime Node.js** (pas Edge).
+- Limites de taille sur les requêtes et les conversations.
+- Mots de passe hashés (bcrypt, cost 12).
+
+## Scripts utiles
+
+| Commande | Rôle |
+|----------|------|
+| `npm run dev` | Serveur de dev (webpack) |
+| `npm run build` | Build production |
+| `npm run db:migrate` | Appliquer les migrations |
+| `npm run db:studio` | Interface Prisma |
