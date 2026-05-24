@@ -3,7 +3,20 @@
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+
+function authErrorMessage(code: string | null): string {
+  switch (code) {
+    case "CredentialsSignin":
+      return "E-mail ou mot de passe incorrect.";
+    case "Configuration":
+      return "Configuration Auth sur Vercel incorrecte (vérifie AUTH_URL et AUTH_SECRET, puis Redeploy).";
+    case "AccessDenied":
+      return "Accès refusé.";
+    default:
+      return code ? "Connexion impossible. Réessaie." : "";
+  }
+}
 
 function LoginForm() {
   const router = useRouter();
@@ -12,11 +25,19 @@ function LoginForm() {
   const callbackUrl =
     rawCallback.startsWith("/") && !rawCallback.startsWith("//") ? rawCallback : "/";
   const justRegistered = searchParams.get("registered") === "1";
+  const urlError = searchParams.get("error");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const msg = authErrorMessage(urlError);
+    if (msg) {
+      setError(msg);
+    }
+  }, [urlError]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

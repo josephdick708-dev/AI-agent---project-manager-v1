@@ -20,21 +20,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user?.password) {
+        try {
+          const user = await prisma.user.findUnique({ where: { email } });
+          if (!user?.password) {
+            return null;
+          }
+
+          const ok = await bcrypt.compare(password, user.password);
+          if (!ok) {
+            return null;
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+          };
+        } catch {
           return null;
         }
-
-        const ok = await bcrypt.compare(password, user.password);
-        if (!ok) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        };
       },
     }),
   ],

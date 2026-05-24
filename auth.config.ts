@@ -10,6 +10,7 @@ export const authConfig: NextAuthConfig = {
   useSecureCookies: isProd,
   pages: {
     signIn: "/login",
+    error: "/login",
   },
   providers: [],
   callbacks: {
